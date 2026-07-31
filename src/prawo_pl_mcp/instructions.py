@@ -19,21 +19,34 @@ several seconds (package download + spawn), subsequent calls are fast.
 ## Call order
 
 1. `pl_list_sources` - start here. Without arguments: catalog of sources
-   (id, coverage, capabilities, native tools). With `source_id`: live tool
-   schemas of that connector - check before using `pl_call` or source-specific
-   `extra` parameters.
+   (id, coverage, capabilities, native tools) plus `native_params` - the native
+   parameter name each unified parameter maps to for that source. With
+   `source_id`: live tool schemas of that connector - check before using
+   `pl_call` or source-specific `extra` parameters.
 2. `pl_search` - unified search across any source. Common parameters
    (`query`, `date_from`, `date_to`, `page`, `limit`) are translated to the
    source's native names; pass source-specific filters via `extra` (native
-   names, see `pl_list_sources(source_id=...)`).
+   names, see `native_params` or `pl_list_sources(source_id=...)`).
 3. `pl_get_document` - full document by source + identifier (judgment ID or
    case signature, ELI, KRS number, interpretation ID...). Long documents are
-   paginated at ~5000 characters per page; iterate `page_number` while
-   `has_more` is true.
+   paginated at ~5000 characters per page; iterate `page` while `has_more` is
+   true. Sources that paginate server-side report `pagination` = "native" and
+   put their own page counter in the text.
 4. `pl_call` - escape hatch: any native tool of any source (citator checks,
    statistics, board composition, dictionaries...). Use when unified tools do
    not cover the operation. Verify the schema first via
    `pl_list_sources(source_id=...)`.
+
+## One name per concept
+
+- `page` is the page parameter of BOTH `pl_search` and `pl_get_document`, and it
+  is ALWAYS 1-based. `page_number` is a deprecated alias accepted by both -
+  never mix the two in one call.
+- `pl_call` takes the native tool's parameters in `arguments` (alias: `args`,
+  pass only one). Key it by NATIVE names - `native_params` in `pl_list_sources`
+  lists the common ones (e.g. eu-compliance article lookup wants
+  `article_number`, not `article`). A wrong name comes back as `invalid_arg`
+  naming the accepted parameters, before the call reaches the connector.
 
 ## Hard constraints
 

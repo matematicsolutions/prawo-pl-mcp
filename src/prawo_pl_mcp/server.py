@@ -101,6 +101,109 @@ async def _proxy_call(s: Source, tool: str, arguments: dict) -> str:
         raise PLLegalError("upstream_error", f"{s.id}/{tool}: {msg}") from exc
 
 
+def _resolve_page(page: int, page_number: int | None) -> int:
+    """Jedna semantyka strony dla calego serwera: `page`, ZAWSZE od 1.
+
+    `page_number` to alias wsteczny (do 0.1.2 tak nazywal sie parametr w
+    pl_get_document). Model, ktory nauczyl sie jednej nazwy, nie moze dostac
+    ToolError przy drugim toolu - wiec oba dzialaja wszedzie. Sprzecznosc
+    (page=3, page_number=7) to blad wywolujacego, nie cicha wygrana jednego.
+    """
+    if page_number is not None:
+        if page != 1 and page != page_number:
+            raise PLLegalError(
+                "invalid_arg",
+                f"page={page} and page_number={page_number} disagree. Use `page` only "
+                f"(`page_number` is a deprecated alias kept for backward compatibility).",
+            )
+        page = page_number
+    if page < 1:
+        raise PLLegalError("invalid_arg", f"page is 1-based; got {page}")
+    return page
+
+
+def _coerce_arguments(arguments: Any, args: Any) -> dict:
+    """`arguments` kanoniczne, `args` alias - plus tolerancja na JSON w stringu."""
+    provided = [(n, v) for n, v in (("arguments", arguments), ("args", args)) if v is not None]
+    if not provided:
+        return {}
+    if len(provided) == 2:
+        raise PLLegalError(
+            "invalid_arg",
+            "pass either `arguments` or `args` (alias of the same field), not both.",
+        )
+    name, value = provided[0]
+    if isinstance(value, str):
+        try:
+            value = json.loads(value)
+        except ValueError as exc:
+            raise PLLegalError(
+                "invalid_arg", f"`{name}` is a string that is not valid JSON: {exc}"
+            ) from exc
+    if not isinstance(value, dict):
+        raise PLLegalError(
+            "invalid_arg",
+            f"`{name}` must be an object mapping the native tool's parameter names to "
+            f"values, got {type(value).__name__}.",
+        )
+    return value
+
+
+def _looks_like(provided: str, known: str) -> bool:
+    """Czy `provided` to prawdopodobnie literowka/skrot nazwy `known`."""
+    a, b = provided.lower(), known.lower()
+    if a == b:
+        return True
+    if a.replace("_", "") == b.replace("_", ""):
+        return True
+    return len(a) >= 3 and (b.startswith(a) or a.startswith(b))
+
+
+async def _validate_native_args(s: Source, tool: str, args: dict) -> None:
+    """Bramka pass-through: zlap zla nazwe parametru ZANIM poleci do konektora.
+
+    Dotad natywna nazwa (np. `article_number` przy eu_article) zdradzala sie
+    dopiero w bledzie upstreamu. Zakres celowo waski: brak pola wymaganego oraz
+    nazwa bliska znanej (literowka). Nieznane pola bez podobienstwa przepuszczamy
+    - konektory floty swiadomie akceptuja nadmiarowe pola (forward-compat).
+    """
+    try:
+        tools = await POOL.list_tools(s, use_cache=True)
+    except SourceUnavailable as exc:
+        raise PLLegalError("source_unavailable", str(exc)) from exc
+
+    spec = next((t for t in tools if t.get("name") == tool), None)
+    if spec is None:
+        raise PLLegalError(
+            "unknown_tool",
+            f"Source '{s.id}' does not expose tool '{tool}'. Native tools: "
+            f"{', '.join(sorted(t.get('name', '') for t in tools))}.",
+        )
+    schema = spec.get("input_schema") or {}
+    properties = schema.get("properties") or {}
+    if not properties:
+        return  # konektor nie deklaruje schematu - nie ma czego egzekwowac
+
+    known = set(properties)
+    required = [p for p in (schema.get("required") or []) if p not in args]
+    unknown = [k for k in args if k not in known]
+    near_miss = {
+        k: [n for n in known if _looks_like(k, n)] for k in unknown
+    }
+    near_miss = {k: v for k, v in near_miss.items() if v}
+
+    if not required and not near_miss:
+        return
+
+    parts = [f"Tool '{tool}' of source '{s.id}': "]
+    if required:
+        parts.append(f"missing required {required}. ")
+    for bad, candidates in near_miss.items():
+        parts.append(f"'{bad}' is not a parameter - did you mean {candidates}? ")
+    parts.append(f"Accepted parameters: {sorted(known)}.")
+    raise PLLegalError("invalid_arg", "".join(parts))
+
+
 def _audited(tool: str, source_id: str | None, params: Any, started: float,
              summary: dict, error: str | None = None) -> None:
     audit.log_event(
@@ -119,11 +222,13 @@ def _audited(tool: str, source_id: str | None, params: Any, started: float,
 async def pl_list_sources(source_id: str | None = None, group: str | None = None) -> str:
     """List available Polish/EU legal data sources, or inspect one source's live tool schemas.
 
-    Without arguments: full catalog (id, coverage, capabilities, native tool names) -
-    reads a local registry, spawns nothing. With `source_id`: connects to that
-    connector (lazy spawn on first use) and returns its live tools/list with input
-    schemas - use before pl_call or before passing source-specific `extra` params.
-    Optional `group` filter: 'pl' (Polish sources) or 'eu' (EU extras).
+    Without arguments: full catalog (id, coverage, capabilities, native tool names,
+    and `native_params` - the NATIVE parameter name each unified parameter maps to,
+    e.g. eu-compliance pl_get_document -> {"tool": "eu_article",
+    "document_id": "article_number"}) - reads a local registry, spawns nothing.
+    With `source_id`: connects to that connector (lazy spawn on first use) and
+    returns its live tools/list with input schemas - needed for native tools that
+    the unified tools do not cover. Optional `group` filter: 'pl' or 'eu'.
 
     Errors: `unknown_source` (bad source_id), `source_unavailable` (connector
     could not start).
@@ -137,8 +242,9 @@ async def pl_list_sources(source_id: str | None = None, group: str | None = None
             "server": f"prawo-pl-mcp {__version__}",
             "sources": catalog(group),
             "hint": "pl_search / pl_get_document for the common path; "
-            "pl_call for source-specific tools; "
-            "pl_list_sources(source_id=...) for live schemas.",
+            "pl_call for source-specific tools (key its `arguments` by the native "
+            "names in `native_params`); pl_list_sources(source_id=...) for the "
+            "live schema of every native tool. `page` is 1-based everywhere.",
         }
         _audited("pl_list_sources", None, {"group": group}, started, {"sources": len(result["sources"])})
         return json.dumps(result, ensure_ascii=False, indent=1)
@@ -161,15 +267,18 @@ async def pl_search(
     page: int = 1,
     limit: int | None = None,
     extra: dict | None = None,
+    page_number: int | None = None,
 ) -> str:
     """Unified search across any registered source (SAOS, NSA, ISAP, EUREKA, KIO, UODO...).
 
     Common parameters are translated to the source's native names (dateFrom vs
-    date_from, 0- vs 1-based pages - handled here; `page` is ALWAYS 1-based).
-    `date_from`/`date_to`: YYYY-MM-DD. `limit`: results per page (clamped to the
-    source maximum). `extra`: source-specific native filters merged verbatim
-    (e.g. {"courtType": "SUPREME"} for saos, {"country": "es"} for legalize -
-    see pl_list_sources).
+    date_from, 0- vs 1-based pages - handled here; `page` is ALWAYS 1-based, and
+    is the same parameter name in pl_get_document). `date_from`/`date_to`:
+    YYYY-MM-DD. `limit`: results per page (clamped to the source maximum).
+    `extra`: source-specific native filters merged verbatim (e.g.
+    {"courtType": "SUPREME"} for saos, {"country": "es"} for legalize - the
+    native names are listed under `native_params` in pl_list_sources).
+    `page_number` is a deprecated alias of `page`; prefer `page`.
 
     Errors: `unknown_source`, `invalid_arg` (source has no search tool, e.g. krs;
     missing required extra; page < 1), `source_unavailable`, `upstream_error`
@@ -185,8 +294,7 @@ async def pl_search(
             f"Source '{s.id}' has no search tool ({s.notes or 'lookup by identifier only'}). "
             f"Use pl_get_document or pl_call.",
         )
-    if page < 1:
-        raise PLLegalError("invalid_arg", f"page is 1-based; got {page}")
+    page = _resolve_page(page, page_number)
 
     args: dict[str, Any] = dict(extra or {})
     missing = [p for p in spec.required_extra if p not in args]
@@ -229,26 +337,32 @@ async def pl_search(
 async def pl_get_document(
     source: str,
     document_id: str,
-    page_number: int = 1,
+    page: int = 1,
     extra: dict | None = None,
+    page_number: int | None = None,
 ) -> str:
     """Fetch the full document (judgment, act text, register extract...) from a source.
 
     `document_id` format depends on the source - numeric id (saos), hex doc_id
     (nsa), ELI (isap), KRS number (krs), signature (kio, uodo)... - see the
     `document_id` field in pl_list_sources. Long documents are paginated at
-    ~5000 characters per page: response is JSON with `content`, `page_number`,
-    `total_pages`, `has_more` - iterate `page_number` while `has_more`.
+    ~5000 characters per page: response is JSON with `content`, `page`,
+    `total_pages`, `has_more` - iterate `page` while `has_more` (`page` is
+    1-based, exactly as in pl_search; `page_number` is a deprecated alias kept
+    for backward compatibility, and is echoed in the response for the same
+    reason). Sources that paginate the document themselves (isap) report
+    `pagination: "native"` and carry their own page footer inside `content`.
     Some sources need `extra` (e.g. eu-compliance: {"regulation": "GDPR"}).
 
-    Errors: `unknown_source`, `invalid_arg` (missing required extra),
-    `source_unavailable`, `upstream_error` (e.g. connector's not_found -
-    check the identifier or search first).
+    Errors: `unknown_source`, `invalid_arg` (missing required extra, page < 1,
+    conflicting page/page_number), `source_unavailable`, `upstream_error`
+    (e.g. connector's not_found - check the identifier or search first).
     """
     started = time.monotonic()
     s = _resolve(source)
     _otel_tag(s.id)
     spec = s.get
+    page = _resolve_page(page, page_number)
 
     args: dict[str, Any] = dict(extra or {})
     missing = [p for p in spec.required_extra if p not in args]
@@ -259,39 +373,66 @@ async def pl_get_document(
             f"Hint: {spec.id_hint}",
         )
     args.setdefault(spec.id_param, document_id)
+    if spec.page_param:
+        args.setdefault(spec.page_param, page)
 
     try:
         text = await _proxy_call(s, spec.tool, args)
     except PLLegalError as exc:
         _audited("pl_get_document", s.id, args, started, {}, error=exc.code)
         raise
-    page = paginate(text, page_number)
-    page["source"] = s.id
-    page["document_id"] = document_id
+
+    if spec.page_param:
+        # Zrodlo juz wybralo strone. Drugie ciecie tutaj liczyloby strony JEDNEJ
+        # strony zrodla, wiec total_pages/has_more bylyby falszem - nie zgadujemy.
+        out = {
+            "content": text,
+            "page": page,
+            "page_number": page,
+            "pagination": "native",
+            "total_chars": len(text),
+        }
+    else:
+        out = paginate(text, page)
+        out["page"] = out["page_number"]
+        out["pagination"] = "aggregator"
+    out["source"] = s.id
+    out["document_id"] = document_id
     _audited(
         "pl_get_document", s.id, args, started,
-        {"total_chars": page["total_chars"], "page": page["page_number"]},
+        {"total_chars": out["total_chars"], "page": out["page"]},
     )
-    return json.dumps(page, ensure_ascii=False)
+    return json.dumps(out, ensure_ascii=False)
 
 
-async def pl_call(source: str, tool: str, arguments: dict | None = None) -> str:
+async def pl_call(
+    source: str,
+    tool: str,
+    arguments: dict | str | None = None,
+    args: dict | str | None = None,
+) -> str:
     """Escape hatch: call any native tool of any registered source.
 
     For operations the unified tools do not cover: citator (saos_cite_check),
     DPA statistics (uodo_stats), procurement-article search (kio_by_pzp_article),
     board composition (get_board), regulation comparison (eu_compare), tax
-    category dictionary (list_categories)... Check the exact input schema first
-    via pl_list_sources(source_id=...) - `arguments` are passed verbatim.
+    category dictionary (list_categories)... `arguments` (alias: `args` - both
+    accepted, pass only one) is an object keyed by the NATIVE parameter names of
+    that tool, passed verbatim. The native names of the common ones are in
+    `native_params` from pl_list_sources; for everything else read the live
+    schema via pl_list_sources(source_id=...). Wrong parameter names are caught
+    here against the connector's schema, before the call leaves the aggregator.
 
     Errors: `unknown_source`, `unknown_tool` (not exposed by that source),
+    `invalid_arg` (missing required or misspelled parameter name),
     `source_unavailable`, `upstream_error` (connector's own error code in message).
     """
     started = time.monotonic()
     s = _resolve(source)
     _otel_tag(s.id)
-    args = arguments or {}
+    args = _coerce_arguments(arguments, args)
     try:
+        await _validate_native_args(s, tool, args)
         text = await _proxy_call(s, tool, args)
     except PLLegalError as exc:
         _audited("pl_call", s.id, {"tool": tool, **args}, started, {}, error=exc.code)

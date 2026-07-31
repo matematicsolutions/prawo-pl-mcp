@@ -25,14 +25,25 @@ Turkish law: 16 institutions, one server. prawo-pl-mcp does the same for Poland:
 - One convention. The connectors grew organically: `dateFrom` here, `date_from`
   there, pages counted from 0 or from 1 depending on the repo. Here `page` is
   always 1-based and dates are always `date_from`/`date_to` (YYYY-MM-DD); the
-  translation happens inside.
+  translation happens inside. One name per concept applies to the aggregator's
+  own tools too: `page` is the page parameter of both `pl_search` and
+  `pl_get_document` (`page_number` still works as a deprecated alias), and
+  `pl_call` takes `arguments` or its alias `args`.
+- Native names on the table. Every catalog entry carries `native_params` - the
+  native parameter name each unified one maps to for that source, so
+  `article_number` (eu-compliance) is visible without spawning the connector or
+  reading an upstream error. `pl_call` checks the names it was given against
+  the connector's own schema and says which one it meant.
 - Nothing preinstalled. Connectors run as subprocesses via `npx -y` / `uvx`,
   downloaded on the first call to a given source and kept alive afterwards.
   A source that cannot start reports a readable error while the rest keep
   working.
 - Paginated documents. Full judgment and act texts are chunked at ~5000
   characters per page (yargi-mcp's pattern), so a 200-page ruling does not
-  flood the context window.
+  flood the context window. Sources that paginate server-side (`isap`) get the
+  `page` forwarded natively and are reported as `pagination: "native"` - the
+  aggregator does not re-cut an already-cut page and does not invent a
+  `total_pages` it cannot know.
 
 ## Coverage
 

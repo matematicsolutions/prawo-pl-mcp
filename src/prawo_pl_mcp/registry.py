@@ -36,6 +36,10 @@ class GetSpec:
     id_param: str
     id_hint: str
     required_extra: tuple[str, ...] = ()
+    # Zrodlo samo stronicuje tresc dokumentu (np. isap: dlugi kodeks). Wtedy
+    # unified `page` idzie do konektora, a agregator NIE tnie tego drugi raz -
+    # inaczej `total_pages` liczyloby strony jednej strony zrodla i klamalo.
+    page_param: str | None = None
 
 
 @dataclass(frozen=True)
@@ -128,10 +132,17 @@ SOURCES: dict[str, Source] = {
                 tool="get_act_text",
                 id_param="eli",
                 id_hint="ELI identifier PUBLISHER/YEAR/POSITION, e.g. DU/2018/1000",
+                page_param="page",
             ),
             native_tools=("search_acts", "get_act", "get_act_text"),
-            notes="No date-range params - filter by year (number, via extra). "
-            "Act metadata via pl_call tool=get_act.",
+            notes="Needs mcp-isap >= 1.3.0 (native `page` on get_act_text; older "
+            "builds silently ignore it and always return the first page). "
+            "No date-range params - filter by year (number, via extra). "
+            "Act metadata via pl_call tool=get_act. Long acts are paginated by the "
+            "connector itself - jump straight to an article with "
+            "extra={'search_text': 'Art. 118.'}. The HTML of a BASE act is the text "
+            "AS PROMULGATED, not consolidated; for the wording in force fetch the "
+            "newest 'obwieszczenie' (tekst jednolity) the connector points to.",
         ),
         Source(
             id="krs",
@@ -343,6 +354,48 @@ def get_source(source_id: str) -> Source | None:
     return SOURCES.get(source_id.strip().lower())
 
 
+def native_params(s: Source) -> dict:
+    """Na jakie NATYWNE nazwy tlumaczy sie kazdy parametr unified.
+
+    Bez tego natywna nazwa (np. `article_number` w eu_article) byla widoczna
+    dopiero w bledzie upstreamu - trzeba bylo zgadnac albo zaplacic za spawn
+    konektora przez pl_list_sources(source_id=...). Zrodlo prawdy to ten sam
+    registry, ktory robi dispatch, wiec pole nie moze zdryfowac od zachowania.
+    """
+    out: dict[str, dict] = {}
+    if s.search is not None:
+        sp = s.search
+        entry: dict = {"tool": sp.tool}
+        if sp.query_param:
+            entry["query"] = sp.query_param
+        if sp.date_from_param:
+            entry["date_from"] = sp.date_from_param
+        if sp.date_to_param:
+            entry["date_to"] = sp.date_to_param
+        if sp.page_param:
+            entry["page"] = sp.page_param
+            entry["page_base"] = sp.page_base  # unified `page` zawsze od 1
+        if sp.size_param:
+            entry["limit"] = sp.size_param
+            if sp.size_max is not None:
+                entry["limit_max"] = sp.size_max
+            if sp.size_min is not None:
+                entry["limit_min"] = sp.size_min
+        if sp.required_extra:
+            entry["required_extra"] = list(sp.required_extra)
+        out["pl_search"] = entry
+
+    g = s.get
+    get_entry: dict = {"tool": g.tool, "document_id": g.id_param}
+    if g.page_param:
+        get_entry["page"] = g.page_param
+        get_entry["pagination"] = "native"
+    if g.required_extra:
+        get_entry["required_extra"] = list(g.required_extra)
+    out["pl_get_document"] = get_entry
+    return out
+
+
 def catalog(group: str | None = None) -> list[dict]:
     """Katalog zrodel bez spawnu czegokolwiek (dla pl_list_sources)."""
     out = []
@@ -358,6 +411,7 @@ def catalog(group: str | None = None) -> list[dict]:
             "searchable": s.search is not None,
             "document_id": s.get.id_hint,
             "native_tools": list(s.native_tools),
+            "native_params": native_params(s),
         }
         if s.notes:
             entry["notes"] = s.notes

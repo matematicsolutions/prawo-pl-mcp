@@ -53,6 +53,7 @@ class SourcePool:
     def __init__(self) -> None:
         self._clients: dict[str, Client] = {}
         self._locks: dict[str, asyncio.Lock] = {}
+        self._schemas: dict[str, list[dict]] = {}
         self._global_lock = asyncio.Lock()
 
     async def _lock_for(self, source_id: str) -> asyncio.Lock:
@@ -117,11 +118,20 @@ class SourcePool:
             return json.dumps(data, ensure_ascii=False, default=str)
         return ""
 
-    async def list_tools(self, source: Source) -> list[dict]:
-        """Zywy tools/list konektora (lazy spawn) - schematy do wgladu dla LLM."""
+    async def list_tools(self, source: Source, use_cache: bool = False) -> list[dict]:
+        """Zywy tools/list konektora (lazy spawn) - schematy do wgladu dla LLM.
+
+        `use_cache=True` dla walidacji pass-through w pl_call: schemat konektora
+        nie zmienia sie w trakcie zycia podprocesu, a walidacja nie ma kosztowac
+        dodatkowej rundy przy kazdym wywolaniu.
+        """
+        if use_cache:
+            cached = self._schemas.get(source.id)
+            if cached is not None:
+                return cached
         client = await self.get_client(source)
         tools = await client.list_tools()
-        return [
+        out = [
             {
                 "name": t.name,
                 "description": (t.description or "").strip(),
@@ -129,6 +139,8 @@ class SourcePool:
             }
             for t in tools
         ]
+        self._schemas[source.id] = out
+        return out
 
     async def close_all(self) -> None:
         for source_id, client in list(self._clients.items()):
@@ -137,6 +149,7 @@ class SourcePool:
             except Exception:
                 pass
             self._clients.pop(source_id, None)
+            self._schemas.pop(source_id, None)
 
 
 POOL = SourcePool()
