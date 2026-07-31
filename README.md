@@ -128,13 +128,6 @@ LLM client ──MCP──▶ prawo-pl-mcp ──MCP/stdio──▶ npx @matemat
 Every call lands in a JSONL audit log (timestamp, tool, source, parameter hash,
 latency - never document content).
 
-## Known issues
-
-The `kio` connector (public procurement) currently returns zero results for
-every query - the upstream site changed and its scraper needs a fix. Tracked in
-[kio-orzeczenia-mcp](https://github.com/matematicsolutions/kio-orzeczenia-mcp);
-the aggregator passes through whatever that connector returns.
-
 ## Development
 
 ```bash

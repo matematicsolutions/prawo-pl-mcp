@@ -6,4 +6,4 @@ Wzorzec: saidsurucu/yargi-mcp (unified tools, paginacja 5000 znakow),
 architektura: ADR 0001 (proxy stdio, nie monorepo).
 """
 
-__version__ = "0.1.1"
+__version__ = "0.1.2"
