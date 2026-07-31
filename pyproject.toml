@@ -1,0 +1,65 @@
+[project]
+name = "pl-legal-mcp"
+version = "0.1.0"
+description = "One MCP server for Polish legal data - aggregates the matematicsolutions connector fleet (SAOS, NSA, ISAP, KRS, EUREKA, KIO, UODO + EU extras) behind 4 unified tools"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "Apache-2.0" }
+authors = [
+    { name = "MateMatic", email = "kontakt@matematic.co" }
+]
+keywords = ["mcp", "legal", "polish-law", "saos", "nsa", "isap", "krs", "kio", "uodo", "legaltech"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Legal Industry",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Office/Business",
+]
+dependencies = [
+    "fastmcp>=2.3.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "ruff>=0.4.0",
+]
+asgi = [
+    "uvicorn>=0.30.0",
+]
+
+[project.scripts]
+pl-legal-mcp = "pl_legal_mcp.server:main"
+
+[project.urls]
+Homepage = "https://github.com/matematicsolutions/pl-legal-mcp"
+Repository = "https://github.com/matematicsolutions/pl-legal-mcp"
+Issues = "https://github.com/matematicsolutions/pl-legal-mcp/issues"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pl_legal_mcp"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"
+asyncio_mode = "auto"
+markers = [
+    "smoke: online smoke tests (spawn real connectors via npx/uvx)",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+# Jawny select - globalny config maszyny nie ma wplywac na wynik CI.
+# try/except-pass przy audit/cleanup to swiadomy wzorzec floty (best-effort).
+select = ["E4", "E7", "E9", "F", "UP", "I"]
