@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from pl_legal_mcp.registry import SOURCES, catalog, get_source
+from prawo_pl_mcp.registry import SOURCES, catalog, get_source
 
 
 def test_ids_unique_and_lowercase():

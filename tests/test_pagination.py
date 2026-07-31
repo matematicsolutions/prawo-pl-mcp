@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from pl_legal_mcp.pagination import PAGE_SIZE, paginate
+from prawo_pl_mcp.pagination import PAGE_SIZE, paginate
 
 
 def test_short_text_single_page():

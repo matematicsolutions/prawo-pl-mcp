@@ -1,22 +1,23 @@
 # ADR 0001: Agregacja przez proxy MCP (stdio), nie monorepo-import
 
-Data: 2026-07-31 | Status: zaakceptowany (decyzja robocza, finalna nazwa i publikacja = decyzja WM)
+Data: 2026-07-31 | Status: zaakceptowany
 
 ## Kontekst
 
-Flota matematicsolutions to 12+ osobnych konektorow MCP dla polskich (i unijnych) zrodel
-prawnych. Analiza legal-oss.com (2026-07-31) pokazala, ze jeden zbiorczy serwer w stylu
-saidsurucu/yargi-mcp (16 instytucji tureckich, 1,1k gwiazdek, MIT) ma lepsza widocznosc
-niz rozproszona flota. Konektory ZOSTAJA osobnymi repo (modularnosc, konstytucja fabryki
-eu-legal-mcp: "Factory, not monolith"); pl-legal-mcp jest cienka warstwa agregujaca.
+MateMatic prowadzi kilkanascie osobnych konektorow MCP do polskich i unijnych zrodel
+prawnych. Kazdy jest osobna instalacja i osobnym wpisem w konfiguracji klienta, wiec
+odpowiedz na jedno pytanie prawne kosztuje dziesiec instalacji. saidsurucu/yargi-mcp
+(16 tureckich instytucji w jednym serwerze, MIT) pokazal, ze zbiorczy serwer krajowy
+jest lepiej widoczny niz rozproszona flota. Konektory zostaja osobnymi repozytoriami -
+prawo-pl-mcp to cienka warstwa agregujaca, nie ich nastepca.
 
 Rozwazane opcje:
 
 1. **Monorepo w stylu yargi-mcp** - skopiowac kod klientow do jednego repo, toole
    rejestrowane wprost (`mcp_server_main.py`, ~2400 linii u yargi).
-2. **Monorepo-import** - pl-legal-mcp zalezy od pakietow konektorow, importuje ich
+2. **Monorepo-import** - prawo-pl-mcp zalezy od pakietow konektorow, importuje ich
    instancje FastMCP i montuje in-process (`mcp.mount()`).
-3. **Proxy** - pl-legal-mcp spawnuje konektory jako podprocesy stdio (`npx -y ...` /
+3. **Proxy** - prawo-pl-mcp spawnuje konektory jako podprocesy stdio (`npx -y ...` /
    `uvx ...`) i rozmawia z nimi protokolem MCP przez `fastmcp.Client`.
 
 ## Decyzja
@@ -29,33 +30,35 @@ yargi (42 natywne toole registry v0.1 -> 4 unified), ale bez kopiowania i bez im
 - **Mieszany stack wyklucza opcje 2.** Polowa floty to TypeScript-owe monolity
   (`src/index.ts`: mcp-saos, mcp-nsa, mcp-isap, mcp-krs, mcp-eureka, mcp-eu-sparql,
   mcp-eu-compliance) - nieimportowalne z Pythona. Importowalne sa tylko pakiety
-  Python (kio, uodo, sejm-eli, legalize, boutique). Monorepo-import dalby dwa rezimy
-  agregacji w jednym serwerze; proxy traktuje wszystkie 12 identycznie.
-- **Opcja 1 lamie ADR floty.** Kopiowanie kodu = drift 12 kopii vs 12 repo zrodlowych;
-  konstytucja fabryki mowi wprost: wspoldzielony jest szkielet, nie proces.
-- **Proxy = zero-maintenance przy release konektora.** `npx -y` / `uvx` pobieraja
-  ZAWSZE aktualna opublikowana wersje; meta-pakiet nie pinuje zaleznosci i nie musi
-  byc wydawany przy kazdym release konektora. Nowe zrodlo = jeden wpis w registry.
+  Python (kio, uodo, legalize). Monorepo-import dalby dwa rezimy agregacji w jednym
+  serwerze; proxy traktuje wszystkie 10 zrodel identycznie.
+- **Opcja 1 lamie zasade linii produkcyjnej konektorow.** Kopiowanie kodu to drift
+  10 kopii wobec 10 repo zrodlowych; wspoldzielony ma byc szkielet, nie proces.
+- **Wydanie konektora nie wymaga wydania agregatora.** `npx -y` / `uvx` pobieraja
+  zawsze aktualna opublikowana wersje; meta-pakiet nie pinuje zaleznosci. Nowe
+  zrodlo to jeden wpis w registry.
 - **Granica procesu = granica awarii.** Pad jednego konektora (np. scraping CBOSA
   po zmianie HTML) nie klade calego agregatora; blad wraca jako `upstream_error`
   danego zrodla.
-- **Parytet z regula lazy-provisioning** ([[feedback_korpusowy_konektor_lazy_provisioning_obowiazkowy]]):
-  zaden tool nie moze bledowac "konektor niezainstalowany". Drabinka:
-  `env override (PL_LEGAL_MCP_CMD_<ID>) -> zywa sesja w puli -> spawn uvx/npx
+- **Lazy-provisioning jest obowiazkowy** (regula floty): zaden tool nie moze
+  bledowac "konektor niezainstalowany" jako normalny stan swiezej instalacji. Drabinka:
+  `env override (PRAWO_PL_MCP_CMD_<ID>) -> zywa sesja w puli -> spawn uvx/npx
   (sam pobiera pakiet przy 1. uzyciu) -> czytelny blad source_unavailable`.
 
 ## Konsekwencje
 
-- (+) Cienka warstwa: registry + pula klientow + 4 toole + instructions. Bez logiki domenowej.
-- (+) Konektory rozwijaja sie niezaleznie; agregator podaza za wersjami z npm/PyPI.
-- (-) Wymaga Node >= 18 **i** uv na maszynie klienta (dokumentowane w README; brak
-  ktoregos = zrodla danego runtime raportowane jako niedostepne, reszta dziala).
-- (-) Pierwsze wywolanie zrodla placi koszt spawnu + pobrania pakietu (sekundy);
-  potem sesja zyje w puli (keep-alive).
-- (-) Latencja hopu stdio (~ms) - pomijalna vs latencja upstream API.
-- Unifikacja parametrow wymaga mapowania per zrodlo (registry), a specjalistyczne
-  toole (cite_check, stats, get_board) dostepne przez escape hatch `pl_call` -
-  bez wrapowania kazdego toola z osobna.
+- (+) Warstwa zostaje cienka: registry, pula klientow, 4 toole, instructions.
+  Zero logiki domenowej po naszej stronie.
+- (+) Konektory rozwijaja sie niezaleznie, a agregator podaza za wersjami z npm i PyPI.
+- (-) Klient potrzebuje Node 18+ oraz uv. Brak jednego z nich wycina zrodla tego
+  runtime (raportowane jako `source_unavailable`), reszta dziala.
+- (-) Pierwsze wywolanie zrodla placi za spawn i pobranie pakietu, czyli sekundy.
+  Potem sesja zyje w puli.
+- (-) Dochodzi hop stdio liczony w milisekundach. Wobec latencji SAOS czy CBOSA
+  to szum.
+- (-) Unifikacja parametrow wymaga mapowania per zrodlo w registry. Toole
+  specjalistyczne (`saos_cite_check`, `uodo_stats`, `get_board`) ida przez
+  `pl_call`, zeby nie wrapowac kazdego z osobna.
 
 ## Odniesienia
 

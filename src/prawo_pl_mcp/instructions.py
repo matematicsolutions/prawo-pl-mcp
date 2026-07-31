@@ -45,7 +45,7 @@ several seconds (package download + spawn), subsequent calls are fast.
 - Each source enforces its own rate limits - do not send bursts of parallel
   queries to one source.
 - All tools are read-only; no tool mutates any upstream system.
-- Audit log JSONL: every call is logged to ~/.matematic/audit/pl-legal-mcp.jsonl
+- Audit log JSONL: every call is logged to ~/.matematic/audit/prawo-pl-mcp.jsonl
   (no document content).
 
 ## Iterating on errors

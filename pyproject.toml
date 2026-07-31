@@ -1,5 +1,5 @@
 [project]
-name = "pl-legal-mcp"
+name = "prawo-pl-mcp"
 version = "0.1.0"
 description = "One MCP server for Polish legal data - aggregates the matematicsolutions connector fleet (SAOS, NSA, ISAP, KRS, EUREKA, KIO, UODO + EU extras) behind 4 unified tools"
 readme = "README.md"
@@ -33,19 +33,19 @@ asgi = [
 ]
 
 [project.scripts]
-pl-legal-mcp = "pl_legal_mcp.server:main"
+prawo-pl-mcp = "prawo_pl_mcp.server:main"
 
 [project.urls]
-Homepage = "https://github.com/matematicsolutions/pl-legal-mcp"
-Repository = "https://github.com/matematicsolutions/pl-legal-mcp"
-Issues = "https://github.com/matematicsolutions/pl-legal-mcp/issues"
+Homepage = "https://github.com/matematicsolutions/prawo-pl-mcp"
+Repository = "https://github.com/matematicsolutions/prawo-pl-mcp"
+Issues = "https://github.com/matematicsolutions/prawo-pl-mcp/issues"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/pl_legal_mcp"]
+packages = ["src/prawo_pl_mcp"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

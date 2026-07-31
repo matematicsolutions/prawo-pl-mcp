@@ -6,8 +6,8 @@ import json
 
 import pytest
 
-import pl_legal_mcp.server as srv
-from pl_legal_mcp.server import (
+import prawo_pl_mcp.server as srv
+from prawo_pl_mcp.server import (
     PLLegalError,
     pl_get_document,
     pl_list_sources,

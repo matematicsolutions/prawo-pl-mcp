@@ -1,4 +1,6 @@
-# pl-legal-mcp
+# prawo-pl-mcp
+
+<!-- mcp-name: io.github.matematicsolutions/prawo-pl-mcp -->
 
 One MCP server for Polish legal data.
 
@@ -7,14 +9,15 @@ rulings, public procurement, data-protection decisions, plus EU extras - behind
 four tools. Each connector stays a separate package with its own repository;
 this server spawns them on demand and translates between their conventions.
 
-> Working name. Not yet published to PyPI - see [Status](#status).
+"Prawo" is Polish for "law"; the name follows yargi-mcp's move of naming a
+country server in its own language.
 
 ## Why an aggregator
 
 The connectors cover Polish legal data well, but as separate MCP servers, one
 per database - ten installs and ten config entries before the first question.
 [yargi-mcp](https://github.com/saidsurucu/yargi-mcp) showed the fix for
-Turkish law: 16 institutions, one server. pl-legal-mcp does the same for Poland:
+Turkish law: 16 institutions, one server. prawo-pl-mcp does the same for Poland:
 
 - Four tools instead of 42. `pl_list_sources`, `pl_search`, `pl_get_document`,
   `pl_call` - fewer tool schemas means less context spent before the LLM starts
@@ -71,7 +74,7 @@ runtime is missing, its sources report `source_unavailable` and the rest work.
 ### Claude Code
 
 ```bash
-claude mcp add pl-legal -- uvx pl-legal-mcp
+claude mcp add pl-legal -- uvx prawo-pl-mcp
 ```
 
 ### Claude Desktop / any MCP client (stdio)
@@ -81,7 +84,7 @@ claude mcp add pl-legal -- uvx pl-legal-mcp
   "mcpServers": {
     "pl-legal": {
       "command": "uvx",
-      "args": ["pl-legal-mcp"]
+      "args": ["prawo-pl-mcp"]
     }
   }
 }
@@ -90,21 +93,21 @@ claude mcp add pl-legal -- uvx pl-legal-mcp
 ### Remote (Streamable HTTP)
 
 ```bash
-uvicorn pl_legal_mcp.asgi:app --host 0.0.0.0 --port 8000
+uvicorn prawo_pl_mcp.asgi:app --host 0.0.0.0 --port 8000
 ```
 
-Open by default (public, read-only data). Set `PL_LEGAL_MCP_API_KEY` to require
+Open by default (public, read-only data). Set `PRAWO_PL_MCP_API_KEY` to require
 `X-API-Key: <key>` or `Authorization: Bearer <key>` on every request.
 
 ## Configuration
 
 | Env | Default | Meaning |
 |---|---|---|
-| `PL_LEGAL_MCP_CMD_<ID>` | - | Override the spawn command for a source, e.g. `PL_LEGAL_MCP_CMD_SAOS="node C:/dev/mcp-saos/dist/index.js"` for a local checkout. `<ID>` = source id, uppercase, `-` → `_`. |
-| `PL_LEGAL_MCP_INIT_TIMEOUT` | `180` | Seconds allowed for a connector's first start (includes package download). |
-| `PL_LEGAL_MCP_TIMEOUT` | `90` | Seconds per tool call after startup. |
-| `PL_LEGAL_MCP_AUDIT_DIR` | `~/.matematic/audit` | Where the JSONL audit log goes. |
-| `PL_LEGAL_MCP_API_KEY` | - | ASGI mode only: require this API key (dual-channel). |
+| `PRAWO_PL_MCP_CMD_<ID>` | - | Override the spawn command for a source, e.g. `PRAWO_PL_MCP_CMD_SAOS="node C:/dev/mcp-saos/dist/index.js"` for a local checkout. `<ID>` = source id, uppercase, `-` → `_`. |
+| `PRAWO_PL_MCP_INIT_TIMEOUT` | `180` | Seconds allowed for a connector's first start (includes package download). |
+| `PRAWO_PL_MCP_TIMEOUT` | `90` | Seconds per tool call after startup. |
+| `PRAWO_PL_MCP_AUDIT_DIR` | `~/.matematic/audit` | Where the JSONL audit log goes. |
+| `PRAWO_PL_MCP_API_KEY` | - | ASGI mode only: require this API key (dual-channel). |
 
 ## Architecture
 
@@ -113,10 +116,10 @@ The aggregator is a thin proxy
 vendored or forked; the aggregator speaks MCP to them over stdio the same way
 any client would. The whole layer is a source registry (one dataclass entry
 per connector), a lazy subprocess pool, a parameter translator and a paginator.
-Adding a source = adding a registry entry.
+Adding a source means adding a registry entry.
 
 ```
-LLM client ──MCP──▶ pl-legal-mcp ──MCP/stdio──▶ npx @matematicsolutions/mcp-saos
+LLM client ──MCP──▶ prawo-pl-mcp ──MCP/stdio──▶ npx @matematicsolutions/mcp-saos
                         │         ──MCP/stdio──▶ uvx kio-orzeczenia-mcp
                         │         ──MCP/stdio──▶ ... (spawned on first use)
                         └─ registry + param mapping + 5000-char pagination
@@ -125,17 +128,20 @@ LLM client ──MCP──▶ pl-legal-mcp ──MCP/stdio──▶ npx @matemat
 Every call lands in a JSONL audit log (timestamp, tool, source, parameter hash,
 latency - never document content).
 
-## Status
+## Known issues
 
-Working name, local build, not yet published. The final name and the
-publication decision belong to the maintainer. Until it lands on PyPI, run it
-from a checkout:
+The `kio` connector (public procurement) currently returns zero results for
+every query - the upstream site changed and its scraper needs a fix. Tracked in
+[kio-orzeczenia-mcp](https://github.com/matematicsolutions/kio-orzeczenia-mcp);
+the aggregator passes through whatever that connector returns.
+
+## Development
 
 ```bash
-cd pl-legal-mcp   # your local checkout
+git clone https://github.com/matematicsolutions/prawo-pl-mcp && cd prawo-pl-mcp
 uv sync --extra dev
 uv run pytest          # offline tests: registry, dispatch mapping, pagination, drift
-uv run pl-legal-mcp    # stdio server
+uv run prawo-pl-mcp    # stdio server
 ```
 
 ## License

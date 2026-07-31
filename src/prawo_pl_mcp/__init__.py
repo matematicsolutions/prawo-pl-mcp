@@ -1,4 +1,4 @@
-"""pl-legal-mcp - jeden serwer MCP dla polskich zrodel prawnych.
+"""prawo-pl-mcp - jeden serwer MCP dla polskich zrodel prawnych.
 
 Cienka warstwa proxy agregujaca flote konektorow matematicsolutions
 (osobne repo/pakiety, spawnowane lazy przez npx/uvx) za 4 unified tools.

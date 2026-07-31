@@ -13,8 +13,8 @@ import re
 
 import pytest
 
-from pl_legal_mcp.instructions import INSTRUCTIONS
-from pl_legal_mcp.server import PLLegalError, mcp
+from prawo_pl_mcp.instructions import INSTRUCTIONS
+from prawo_pl_mcp.server import PLLegalError, mcp
 
 
 async def _registered_tools() -> dict:

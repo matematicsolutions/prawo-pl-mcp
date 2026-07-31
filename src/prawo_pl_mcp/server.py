@@ -1,10 +1,10 @@
 """FastMCP server - 4 unified tools nad flota polskich konektorow prawnych.
 
 Uruchamianie:
-    python -m pl_legal_mcp
+    python -m prawo_pl_mcp
 
 Lub jako entry point po pip install / uvx:
-    pl-legal-mcp
+    prawo-pl-mcp
 """
 
 from __future__ import annotations
@@ -50,7 +50,7 @@ READ_ONLY = ToolAnnotations(
     openWorldHint=True,  # zrodla to zywe API/scraping (poza eu-compliance offline)
 )
 
-mcp = FastMCP(name="pl-legal-mcp", instructions=INSTRUCTIONS)
+mcp = FastMCP(name="prawo-pl-mcp", instructions=INSTRUCTIONS)
 
 
 # ---------- helpers ----------
@@ -74,7 +74,7 @@ def _otel_tag(source_id: str | None) -> None:
 
         span = trace.get_current_span()
         if span.is_recording():
-            span.set_attribute("mcp.server", "pl-legal-mcp")
+            span.set_attribute("mcp.server", "prawo-pl-mcp")
             if source_id:
                 span.set_attribute("mcp.source", source_id)
     except Exception:
@@ -134,7 +134,7 @@ async def pl_list_sources(source_id: str | None = None, group: str | None = None
         if group is not None and group not in ("pl", "eu"):
             raise PLLegalError("invalid_arg", "group must be 'pl' or 'eu'")
         result = {
-            "server": f"pl-legal-mcp {__version__}",
+            "server": f"prawo-pl-mcp {__version__}",
             "sources": catalog(group),
             "hint": "pl_search / pl_get_document for the common path; "
             "pl_call for source-specific tools; "

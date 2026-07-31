@@ -1,6 +1,6 @@
 """Audit log JSONL dla rozliczalnosci operatora agregatora.
 
-Lokalizacja: ~/.matematic/audit/pl-legal-mcp.jsonl (override: PL_LEGAL_MCP_AUDIT_DIR).
+Lokalizacja: ~/.matematic/audit/prawo-pl-mcp.jsonl (override: PRAWO_PL_MCP_AUDIT_DIR).
 
 Co logujemy: ts, tool, source, params_hash, result_summary, latency_ms.
 Czego NIE logujemy: pelna tresc dokumentow/orzeczen (przechodzi przez proxy verbatim).
@@ -18,14 +18,14 @@ from typing import Any
 
 
 def _audit_dir() -> Path:
-    override = os.environ.get("PL_LEGAL_MCP_AUDIT_DIR")
+    override = os.environ.get("PRAWO_PL_MCP_AUDIT_DIR")
     if override:
         return Path(override)
     return Path.home() / ".matematic" / "audit"
 
 
 def _audit_file() -> Path:
-    return _audit_dir() / "pl-legal-mcp.jsonl"
+    return _audit_dir() / "prawo-pl-mcp.jsonl"
 
 
 def params_hash(params: Any) -> str:

@@ -1,9 +1,9 @@
 """ASGI app - remote Streamable HTTP (parytet yargi-mcp: remote bez auth mozliwy).
 
 Uruchamianie:
-    uvicorn pl_legal_mcp.asgi:app --host 0.0.0.0 --port 8000
+    uvicorn prawo_pl_mcp.asgi:app --host 0.0.0.0 --port 8000
 
-Auth opcjonalny, dwukanalowy (kanon floty): jesli env PL_LEGAL_MCP_API_KEY jest
+Auth opcjonalny, dwukanalowy (kanon floty): jesli env PRAWO_PL_MCP_API_KEY jest
 ustawiony, kazdy request musi niesc `X-API-Key: <key>` LUB
 `Authorization: Bearer <key>` (niektorzy klienci wysylaja tylko jeden z nich).
 Bez env - serwer otwarty (dane publiczne, read-only).
@@ -24,7 +24,7 @@ async def app(scope, receive, send):
         await _inner(scope, receive, send)
         return
 
-    expected = os.environ.get("PL_LEGAL_MCP_API_KEY")
+    expected = os.environ.get("PRAWO_PL_MCP_API_KEY")
     if expected:
         headers = {k.decode("latin-1").lower(): v.decode("latin-1")
                    for k, v in scope.get("headers", [])}

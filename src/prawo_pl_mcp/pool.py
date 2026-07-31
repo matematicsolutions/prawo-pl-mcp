@@ -2,7 +2,7 @@
 
 Drabinka provisioning (regula floty - lazy-provisioning obowiazkowy,
 zaden tool nie bleduje "konektor niezainstalowany"):
-1. env override `PL_LEGAL_MCP_CMD_<ID>` (np. lokalny checkout: `python -m sejm_eli_mcp`)
+1. env override `PRAWO_PL_MCP_CMD_<ID>` (np. lokalny checkout: `python -m sejm_eli_mcp`)
 2. zywa sesja w puli (keep-alive po pierwszym uzyciu)
 3. spawn `uvx <pkg>` / `npx -y <pkg>` - manager pakietow sam pobiera przy 1. uzyciu
 4. czytelny blad `source_unavailable` (brak Node/uv, pakiet nieosiagalny)
@@ -22,8 +22,8 @@ from fastmcp.client.transports import StdioTransport
 from .registry import Source
 
 # Pierwsze wywolanie zrodla moze pobierac pakiet z npm/PyPI - dajemy zapas.
-INIT_TIMEOUT_S = float(os.environ.get("PL_LEGAL_MCP_INIT_TIMEOUT", "180"))
-CALL_TIMEOUT_S = float(os.environ.get("PL_LEGAL_MCP_TIMEOUT", "90"))
+INIT_TIMEOUT_S = float(os.environ.get("PRAWO_PL_MCP_INIT_TIMEOUT", "180"))
+CALL_TIMEOUT_S = float(os.environ.get("PRAWO_PL_MCP_TIMEOUT", "90"))
 
 
 class SourceUnavailable(Exception):
@@ -32,7 +32,7 @@ class SourceUnavailable(Exception):
 
 def _spawn_spec(source: Source) -> tuple[str, list[str]]:
     """Komenda spawnu wg drabinki: env override -> runtime z registry."""
-    override = os.environ.get(f"PL_LEGAL_MCP_CMD_{source.id.upper().replace('-', '_')}")
+    override = os.environ.get(f"PRAWO_PL_MCP_CMD_{source.id.upper().replace('-', '_')}")
     if override:
         parts = shlex.split(override, posix=False)
         return parts[0], parts[1:]
@@ -76,7 +76,7 @@ class SourcePool:
                 }.get(source.runtime, f"'{command}' not found on PATH")
                 raise SourceUnavailable(
                     f"Source '{source.id}' needs {hint}. Install the runtime or set "
-                    f"PL_LEGAL_MCP_CMD_{source.id.upper().replace('-', '_')} to a local command."
+                    f"PRAWO_PL_MCP_CMD_{source.id.upper().replace('-', '_')} to a local command."
                 )
 
             transport = StdioTransport(command=command, args=args, keep_alive=True)
