@@ -210,7 +210,11 @@ async def pl_search(
     if spec.page_param:
         args.setdefault(spec.page_param, page - 1 if spec.page_base == 0 else page)
     if limit is not None and spec.size_param:
-        clamped = min(limit, spec.size_max) if spec.size_max else limit
+        clamped = limit
+        if spec.size_max:
+            clamped = min(clamped, spec.size_max)
+        if spec.size_min:
+            clamped = max(clamped, spec.size_min)
         args.setdefault(spec.size_param, clamped)
 
     try:

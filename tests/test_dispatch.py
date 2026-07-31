@@ -45,6 +45,12 @@ async def test_saos_search_maps_camelcase_and_zero_based_page(pool):
     assert args["pageSize"] == 100  # clamp do size_max
 
 
+async def test_saos_limit_below_native_minimum_is_raised(pool):
+    await pl_search("saos", query="x", limit=3)
+    _, _, args = pool.calls[0]
+    assert args["pageSize"] == 10  # SAOS odrzuca/ignoruje pageSize < 10
+
+
 async def test_kio_search_maps_snakecase_one_based(pool):
     await pl_search("kio", query="rażąco niska cena", page=3, limit=10)
     _, tool, args = pool.calls[0]

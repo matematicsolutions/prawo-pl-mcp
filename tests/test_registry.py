@@ -31,6 +31,9 @@ def test_search_specs_consistent():
         assert s.search.page_base in (0, 1)
         if s.search.size_max is not None:
             assert s.search.size_param is not None
+        if s.search.size_min is not None:
+            assert s.search.size_param is not None
+            assert s.search.size_max is None or s.search.size_min <= s.search.size_max
 
 
 def test_get_specs_consistent():

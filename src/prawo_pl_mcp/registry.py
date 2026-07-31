@@ -26,6 +26,7 @@ class SearchSpec:
     page_base: int = 1  # 0 = natywna paginacja liczona od 0
     size_param: str | None = None
     size_max: int | None = None
+    size_min: int | None = None  # np. SAOS pageSize min=10 - clamp zamiast cichego ignorowania
     required_extra: tuple[str, ...] = ()  # natywne parametry wymagane przez konektor
 
 
@@ -72,6 +73,7 @@ SOURCES: dict[str, Source] = {
                 page_base=0,
                 size_param="pageSize",
                 size_max=100,
+                size_min=10,
             ),
             get=GetSpec(
                 tool="get_judgment",
