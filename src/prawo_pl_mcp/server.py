@@ -228,7 +228,11 @@ async def pl_coverage() -> Coverage:
     Returns:
         ``Coverage`` with families, an as-of note, and a non-empty list of known gaps.
     """
-    return build_coverage()
+    started = time.monotonic()
+    coverage = build_coverage()
+    _audited("pl_coverage", None, {}, started,
+             {"families": len(coverage.families), "gaps": len(coverage.known_gaps)})
+    return coverage
 
 
 # ---------- unified tools ----------

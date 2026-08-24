@@ -58,3 +58,21 @@ def test_tool_is_registered_and_returns_coverage():
     cov = _coverage()
     assert cov.status in {"ok", "degraded", "failed"}
     assert cov.known_gaps
+
+def test_tool_writes_an_audit_entry(tmp_path, monkeypatch):
+    """INSTRUCTIONS promise every tool call appends to the audit log - prove it for this one."""
+    monkeypatch.setenv("PRAWO_PL_MCP_AUDIT_DIR", str(tmp_path))
+    _coverage()
+    lines = [
+        line
+        for f in tmp_path.rglob("*.jsonl")
+        for line in f.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    assert lines, (
+        "the coverage tool wrote no audit entry, but INSTRUCTIONS promise that every "
+        "tool call is logged - the sentence would be false"
+    )
+    assert any("pl_coverage" in line for line in lines), (
+        "an audit entry was written but it does not name pl_coverage"
+    )
