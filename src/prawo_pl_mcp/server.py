@@ -22,6 +22,7 @@ from .instructions import INSTRUCTIONS
 from .pagination import paginate
 from .pool import POOL, SourceUnavailable
 from .registry import SOURCES, Source, catalog, get_source
+from .coverage import Coverage, build_coverage
 
 
 # Strukturalne kody bledow - drift test: kazdy kod w INSTRUCTIONS.
@@ -214,6 +215,20 @@ def _audited(tool: str, source_id: str | None, params: Any, started: float,
         latency_ms=(time.monotonic() - started) * 1000,
         error=error,
     )
+
+
+@mcp.tool(annotations=READ_ONLY)
+async def pl_coverage() -> Coverage:
+    """Declare what this connector covers, how it is sourced, and what it does NOT cover.
+
+    Call this before telling a user that the law "does not contain" something, and whenever
+    a search comes back empty: the absence may be a gap in this connector rather than in the
+    law. Every gap carries a fallback saying where to look instead.
+
+    Returns:
+        ``Coverage`` with families, an as-of note, and a non-empty list of known gaps.
+    """
+    return build_coverage()
 
 
 # ---------- unified tools ----------

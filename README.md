@@ -71,6 +71,7 @@ Polish sources are tagged `group: pl`, EU extras `group: eu` - filter with
 | `pl_search` | Search any source with normalized parameters; source-specific filters via `extra`. |
 | `pl_get_document` | Full document by identifier (judgment id, ELI, KRS number, signature...), paginated. |
 | `pl_call` | Any native tool of any connector: citator, DPA statistics, board composition, regulation comparison... |
+| `pl_coverage` | Declare what this connector covers, when each family was captured, and - explicitly - what it does NOT cover. Every gap carries a fallback. |
 
 The typical flow an LLM follows (spelled out in the server's `instructions`):
 `pl_list_sources` → `pl_search` → `pl_get_document`, with `pl_call` for the
