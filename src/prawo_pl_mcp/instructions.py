@@ -50,6 +50,9 @@ several seconds (package download + spawn), subsequent calls are fast.
 
 ## Hard constraints
 
+- Do not answer past the edge of this federation: this server holds no corpus of
+  its own. When a search comes back empty, call `pl_coverage` and relay what it
+  says is missing. Absence here is not absence in Polish law.
 - Legal answers require documents, not search snippets: after `pl_search`,
   fetch the actual text with `pl_get_document` before quoting or reasoning.
 - NEVER invent case signatures, ELI identifiers, KRS numbers or dates - use
