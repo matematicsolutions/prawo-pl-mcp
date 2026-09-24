@@ -12,9 +12,14 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import sys
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+
+
+#: Ile wpisow audytu nie dalo sie zapisac w tym procesie (0 = komplet).
+NIEUDANE_ZAPISY = 0
 
 
 def _audit_dir() -> Path:
@@ -63,6 +68,11 @@ def log_event(
 
         with _audit_file().open("a", encoding="utf-8") as f:
             f.write(json.dumps(entry, ensure_ascii=False) + "\n")
-    except Exception:
+    except Exception as exc:  # noqa: BLE001
         # Audit log to best-effort - nie blokujemy uzytkownika jezeli sie nie da pisac.
-        pass
+        # ALE utrata wpisu nie moze byc NIEMA (2026-09-24, bramka cichej porazki):
+        # licznik w module + komunikat na stderr (stdout nalezy do protokolu MCP stdio).
+        global NIEUDANE_ZAPISY
+        NIEUDANE_ZAPISY += 1
+        print(f"[audit] wpis NIE zapisany ({NIEUDANE_ZAPISY}. raz): {type(exc).__name__}: {exc}",
+              file=sys.stderr)
