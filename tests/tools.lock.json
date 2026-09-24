@@ -1,0 +1,449 @@
+{
+  "package_version": "0.2.4",
+  "tools": {
+    "pl_call": {
+      "descriptor": {
+        "annotations": {
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true,
+          "readOnlyHint": true
+        },
+        "description": "Escape hatch: call any native tool of any registered source.\n\nFor operations the unified tools do not cover: citator (saos_cite_check),\nDPA statistics (uodo_stats), procurement-article search (kio_by_pzp_article),\nboard composition (get_board), regulation comparison (eu_compare), tax\ncategory dictionary (list_categories)... `arguments` (alias: `args` - both\naccepted, pass only one) is an object keyed by the NATIVE parameter names of\nthat tool, passed verbatim. The native names of the common ones are in\n`native_params` from pl_list_sources; for everything else read the live\nschema via pl_list_sources(source_id=...). Wrong parameter names are caught\nhere against the connector's schema, before the call leaves the aggregator.\n\nErrors: `unknown_source`, `unknown_tool` (not exposed by that source),\n`invalid_arg` (missing required or misspelled parameter name),\n`source_unavailable`, `upstream_error` (connector's own error code in message).",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "args": {
+              "anyOf": [
+                {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "arguments": {
+              "anyOf": [
+                {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "source": {
+              "type": "string"
+            },
+            "tool": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "source",
+            "tool"
+          ],
+          "type": "object"
+        },
+        "meta": {
+          "fastmcp": {
+            "tags": []
+          }
+        },
+        "name": "pl_call",
+        "outputSchema": {
+          "properties": {
+            "result": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "result"
+          ],
+          "type": "object",
+          "x-fastmcp-wrap-result": true
+        }
+      },
+      "sha256": "ff0e48f468743e0ec7c1d1de893dabec2eb9603fc37d07b260db244a53a680ea"
+    },
+    "pl_coverage": {
+      "descriptor": {
+        "annotations": {
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true,
+          "readOnlyHint": true
+        },
+        "description": "Declare what this connector covers, how it is sourced, and what it does NOT cover.\n\nCall this before telling a user that the law \"does not contain\" something, and whenever\na search comes back empty: the absence may be a gap in this connector rather than in the\nlaw. Every gap carries a fallback saying where to look instead.\n\nReturns:\n    ``Coverage`` with families, an as-of note, and a non-empty list of known gaps.",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {},
+          "type": "object"
+        },
+        "meta": {
+          "fastmcp": {
+            "tags": []
+          }
+        },
+        "name": "pl_coverage",
+        "outputSchema": {
+          "additionalProperties": true,
+          "description": "What this connector covers, how it is sourced, and what it does not cover.",
+          "properties": {
+            "as_of_note": {
+              "description": "States what the dates mean, and what they do not promise.",
+              "type": "string"
+            },
+            "families": {
+              "items": {
+                "additionalProperties": true,
+                "description": "One data family this connector exposes.",
+                "properties": {
+                  "captured_at": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "description": "Date this family was last captured (ISO). None when queried live."
+                  },
+                  "live": {
+                    "default": true,
+                    "description": "True when queried live instead of from a snapshot.",
+                    "type": "boolean"
+                  },
+                  "name": {
+                    "description": "Data family, e.g. 'Federal legislation'.",
+                    "type": "string"
+                  },
+                  "source": {
+                    "description": "Official source the data comes from.",
+                    "type": "string"
+                  },
+                  "tool": {
+                    "description": "Tool or tools that reach this family.",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name",
+                  "tool",
+                  "source"
+                ],
+                "type": "object"
+              },
+              "type": "array"
+            },
+            "known_gaps": {
+              "description": "Never empty. An empty list would mean 'not checked', not 'no gaps'.",
+              "items": {
+                "additionalProperties": true,
+                "description": "A known, named hole in this connector's coverage - plus the way around it.",
+                "properties": {
+                  "fallback": {
+                    "description": "Where to go instead.",
+                    "type": "string"
+                  },
+                  "family": {
+                    "description": "Which family the gap belongs to.",
+                    "type": "string"
+                  },
+                  "id": {
+                    "description": "Stable gap identifier.",
+                    "type": "string"
+                  },
+                  "missing": {
+                    "description": "What is NOT available through this connector.",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "family",
+                  "missing",
+                  "fallback"
+                ],
+                "type": "object"
+              },
+              "type": "array"
+            },
+            "status": {
+              "default": "ok",
+              "enum": [
+                "ok",
+                "degraded",
+                "failed"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "as_of_note"
+          ],
+          "type": "object"
+        }
+      },
+      "sha256": "a9f32b7ed4cd101e00c4494dfa88200e93808ac20f8449b2973ec20b5df05895"
+    },
+    "pl_get_document": {
+      "descriptor": {
+        "annotations": {
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true,
+          "readOnlyHint": true
+        },
+        "description": "Fetch the full document (judgment, act text, register extract...) from a source.\n\n`document_id` format depends on the source - numeric id (saos), hex doc_id\n(nsa), ELI (isap), KRS number (krs), signature (kio, uodo)... - see the\n`document_id` field in pl_list_sources. Long documents are paginated at\n~5000 characters per page: response is JSON with `content`, `page`,\n`total_pages`, `has_more` - iterate `page` while `has_more` (`page` is\n1-based, exactly as in pl_search; `page_number` is a deprecated alias kept\nfor backward compatibility, and is echoed in the response for the same\nreason). Sources that paginate the document themselves (isap) report\n`pagination: \"native\"` and carry their own page footer inside `content`.\nSome sources need `extra` (e.g. eu-compliance: {\"regulation\": \"GDPR\"}).\n\nErrors: `unknown_source`, `invalid_arg` (missing required extra, page < 1,\nconflicting page/page_number), `source_unavailable`, `upstream_error`\n(e.g. connector's not_found - check the identifier or search first).",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "document_id": {
+              "type": "string"
+            },
+            "extra": {
+              "anyOf": [
+                {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "page": {
+              "default": 1,
+              "type": "integer"
+            },
+            "page_number": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "source": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "source",
+            "document_id"
+          ],
+          "type": "object"
+        },
+        "meta": {
+          "fastmcp": {
+            "tags": []
+          }
+        },
+        "name": "pl_get_document",
+        "outputSchema": {
+          "properties": {
+            "result": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "result"
+          ],
+          "type": "object",
+          "x-fastmcp-wrap-result": true
+        }
+      },
+      "sha256": "c008554e513298bf94c4840d63414a14edf1ae0dbcb5d6699808f78cb3c0ddcc"
+    },
+    "pl_list_sources": {
+      "descriptor": {
+        "annotations": {
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true,
+          "readOnlyHint": true
+        },
+        "description": "List available Polish/EU legal data sources, or inspect one source's live tool schemas.\n\nWithout arguments: full catalog (id, coverage, capabilities, native tool names,\nand `native_params` - the NATIVE parameter name each unified parameter maps to,\ne.g. eu-compliance pl_get_document -> {\"tool\": \"eu_article\",\n\"document_id\": \"article_number\"}) - reads a local registry, spawns nothing.\nWith `source_id`: connects to that connector (lazy spawn on first use) and\nreturns its live tools/list with input schemas - needed for native tools that\nthe unified tools do not cover. Optional `group` filter: 'pl' or 'eu'.\n\nErrors: `unknown_source` (bad source_id), `source_unavailable` (connector\ncould not start).",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "group": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "source_id": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            }
+          },
+          "type": "object"
+        },
+        "meta": {
+          "fastmcp": {
+            "tags": []
+          }
+        },
+        "name": "pl_list_sources",
+        "outputSchema": {
+          "properties": {
+            "result": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "result"
+          ],
+          "type": "object",
+          "x-fastmcp-wrap-result": true
+        }
+      },
+      "sha256": "a0421d1d8379fb49f20f38ce4fc37ceb4564517adbfe63de3c5d227a8483034c"
+    },
+    "pl_search": {
+      "descriptor": {
+        "annotations": {
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true,
+          "readOnlyHint": true
+        },
+        "description": "Unified search across any registered source (SAOS, NSA, ISAP, EUREKA, KIO, UODO...).\n\nCommon parameters are translated to the source's native names (dateFrom vs\ndate_from, 0- vs 1-based pages - handled here; `page` is ALWAYS 1-based, and\nis the same parameter name in pl_get_document). `date_from`/`date_to`:\nYYYY-MM-DD. `limit`: results per page (clamped to the source maximum).\n`extra`: source-specific native filters merged verbatim (e.g.\n{\"courtType\": \"SUPREME\"} for saos, {\"country\": \"es\"} for legalize - the\nnative names are listed under `native_params` in pl_list_sources).\n`page_number` is a deprecated alias of `page`; prefer `page`.\n\nErrors: `unknown_source`, `invalid_arg` (source has no search tool, e.g. krs;\nmissing required extra; page < 1), `source_unavailable`, `upstream_error`\n(connector's own error code preserved in message).",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "date_from": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "date_to": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "extra": {
+              "anyOf": [
+                {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "limit": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "page": {
+              "default": 1,
+              "type": "integer"
+            },
+            "page_number": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "query": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "source": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "source"
+          ],
+          "type": "object"
+        },
+        "meta": {
+          "fastmcp": {
+            "tags": []
+          }
+        },
+        "name": "pl_search",
+        "outputSchema": {
+          "properties": {
+            "result": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "result"
+          ],
+          "type": "object",
+          "x-fastmcp-wrap-result": true
+        }
+      },
+      "sha256": "157c82c766365b0b2acc64ce335124eb757b590506e9c5fbd70c1fdfbd0c71aa"
+    }
+  },
+  "toolset_sha256": "aac1da04e1abd553265f919bb92f5edf7d5c32b110b94e054a277e322b950d42"
+}
