@@ -40,6 +40,11 @@ def _spawn_spec(source: Source) -> tuple[str, list[str]]:
         return "npx", ["-y", source.package]
     if source.runtime == "uvx":
         return "uvx", [source.package]
+    if source.runtime == "git-uvx":
+        # package = "git+https://...  <entrypoint>" - nie ma wydania na PyPI.
+        # Bez tego runtime zrodlo gitowe trzeba by wpisac przez env override.
+        pkg, _, entry = source.package.partition(" ")
+        return "uvx", ["--from", pkg.strip(), entry.strip()]
     raise SourceUnavailable(f"Unknown runtime '{source.runtime}' for source '{source.id}'")
 
 

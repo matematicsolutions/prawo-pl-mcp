@@ -11,7 +11,7 @@ def test_ids_unique_and_lowercase():
 
 
 def test_runtime_valid():
-    assert all(s.runtime in ("npx", "uvx") for s in SOURCES.values())
+    assert all(s.runtime in ("npx", "uvx", "git-uvx") for s in SOURCES.values())
 
 
 def test_groups_valid():
@@ -29,11 +29,36 @@ def test_search_specs_consistent():
             continue
         assert s.search.tool in s.native_tools, f"{s.id}: search tool spoza native_tools"
         assert s.search.page_base in (0, 1)
+        # page_param i offset_param wykluczaja sie (inaczej `page` trafia w dwa miejsca)
+        assert not (s.search.page_param and s.search.offset_param), (
+            f"{s.id}: page_param i offset_param jednoczesnie"
+        )
         if s.search.size_max is not None:
             assert s.search.size_param is not None
         if s.search.size_min is not None:
             assert s.search.size_param is not None
             assert s.search.size_max is None or s.search.size_min <= s.search.size_max
+
+
+def test_offset_pagination_math():
+    """Offset liczy sie z rozmiaru strony; bez limit bierzemy size_max."""
+    from prawo_pl_mcp.registry import SearchSpec, offset_for
+
+    spec = SearchSpec(tool="t", offset_param="offset", size_param="limit", size_max=50)
+    assert offset_for(spec, page=1, limit=10) == 0
+    assert offset_for(spec, page=3, limit=10) == 20
+    assert offset_for(spec, page=2, limit=None) == 50  # (2-1) * size_max
+    assert offset_for(spec, page=2, limit=999) == 999  # clamp robi server.py, tu surowo
+
+
+def test_git_uvx_spawn_spec():
+    """Runtime git-uvx rozklada 'git+URL entrypoint' na uvx --from."""
+    from prawo_pl_mcp.pool import _spawn_spec
+
+    s = get_source("law-scrapper")
+    cmd, args = _spawn_spec(s)
+    assert cmd == "uvx"
+    assert args == ["--from", "git+https://github.com/numikel/law-scrapper-mcp", "law-scrapper"]
 
 
 def test_get_specs_consistent():

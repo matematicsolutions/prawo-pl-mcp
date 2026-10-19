@@ -59,6 +59,9 @@ Turkish law: 16 institutions, one server. prawo-pl-mcp does the same for Poland:
 | `eu-sparql` | EU law: EUR-Lex by CELEX, CJEU by ECLI, GDPRhub | [Cellar SPARQL](https://op.europa.eu/en/web/cellar) | [mcp-eu-sparql](https://github.com/matematicsolutions/mcp-eu-sparql) | npx |
 | `eu-compliance` | 14 EU regulations offline (GDPR, AI Act, DORA, NIS2...) | Local SQLite corpus | [mcp-eu-compliance](https://github.com/matematicsolutions/mcp-eu-compliance) | npx |
 | `legalize` | Law-as-git: 32 jurisdictions, versioned by commit | [legalize-dev](https://github.com/legalize-dev) | [legalize-mcp](https://github.com/matematicsolutions/legalize-mcp) | uvx |
+| `law-scrapper` | Legislation with amendment/reference graph + legal-date math | [Sejm ELI API](https://api.sejm.gov.pl) | [law-scrapper](https://github.com/numikel/law-scrapper-mcp) | git+uvx |
+| `echr` | ECHR/ETPC case law: judgments, decisions, full text | [HUDOC](https://hudoc.echr.coe.int) | [echr-mcp](https://github.com/pawelknorps/echr-mcp) | git+uvx |
+| `sejm-process` | Legislative process: draft bills, stage timelines, votes, prints | [api.sejm.gov.pl](https://api.sejm.gov.pl) | [sejm-process-mcp](https://github.com/pawelknorps/sejm-process-mcp) | git+uvx |
 
 Polish sources are tagged `group: pl`, EU extras `group: eu` - filter with
 `pl_list_sources(group="pl")`.

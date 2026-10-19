@@ -21,7 +21,7 @@ from . import __version__, audit
 from .instructions import INSTRUCTIONS
 from .pagination import paginate
 from .pool import POOL, SourceUnavailable
-from .registry import SOURCES, Source, catalog, get_source
+from .registry import SOURCES, Source, catalog, get_source, offset_for
 from .coverage import Coverage, build_coverage
 
 
@@ -343,6 +343,9 @@ async def pl_search(
         if spec.size_min:
             clamped = max(clamped, spec.size_min)
         args.setdefault(spec.size_param, clamped)
+    if spec.offset_param:
+        # Zrodlo liczy strony przez limit/offset, nie page - patrz registry.offset_for.
+        args.setdefault(spec.offset_param, offset_for(spec, page, limit))
 
     try:
         text = await _proxy_call(s, spec.tool, args)
